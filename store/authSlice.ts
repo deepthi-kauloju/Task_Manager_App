@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction, AnyAction } from '@reduxjs/toolkit';
 import { User } from '../types';
+import { callApi, callAuthenticatedApi } from '../services/apiClient';
 
 interface AuthState {
   user: User | null;
@@ -17,24 +18,12 @@ const initialState: AuthState = {
   error: null,
 };
 
-// Helper for API calls
-const callApi = async (url: string, options: RequestInit = {}) => {
-  const response = await fetch(url, options);
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.message || 'Something went wrong');
-  }
-  return data;
-};
-
-
 // Async Thunks
 export const signup = createAsyncThunk(
   'auth/signup',
   async (userData: Omit<User, 'id'> & { password: string }) => {
     const response = await callApi('/api/auth/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
     });
     return response;
@@ -46,7 +35,6 @@ export const login = createAsyncThunk(
   async (credentials: Pick<User, 'email'> & { password: string }) => {
     const response = await callApi('/api/auth/login', {
        method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials),
     });
     return response;
@@ -56,9 +44,7 @@ export const login = createAsyncThunk(
 export const loadUser = createAsyncThunk('auth/loadUser', async (_, { getState }) => {
   const token = (getState() as { auth: AuthState }).auth.token;
   if (token) {
-    const user = await callApi('/api/auth/me', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    const user = await callAuthenticatedApi('/api/auth/me', token);
     // The token is still valid, return user and existing token
     return { user, token };
   }
