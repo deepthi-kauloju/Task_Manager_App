@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Task, FilterType, SortType } from '../types';
 import { logout } from './authSlice';
-import { callAuthenticatedApi } from '../services/apiClient';
 
 interface TasksState {
   items: Task[];
@@ -25,13 +24,31 @@ interface ThunkApiConfig {
   state: { auth: { token: string | null } };
 }
 
+// Helper for authorized API calls
+const callApi = async (url: string, token: string, options: RequestInit = {}) => {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Something went wrong with tasks API');
+  }
+  return data;
+};
+
+
 // Async Thunks
 export const fetchTasks = createAsyncThunk<Task[], void, ThunkApiConfig>(
   'tasks/fetchTasks',
   async (_, { getState }) => {
     const token = getState().auth.token;
     if (!token) throw new Error('Not authenticated');
-    return callAuthenticatedApi('/api/tasks', token);
+    return callApi('/api/tasks', token);
   }
 );
 
@@ -40,7 +57,7 @@ export const addTask = createAsyncThunk<Task, Omit<Task, 'id' | 'createdAt' | 'i
   async (taskData, { getState }) => {
     const token = getState().auth.token;
     if (!token) throw new Error('Not authenticated');
-    return callAuthenticatedApi('/api/tasks', token, {
+    return callApi('/api/tasks', token, {
       method: 'POST',
       body: JSON.stringify(taskData),
     });
@@ -52,7 +69,7 @@ export const updateTask = createAsyncThunk<Task, { id: string; updates: Partial<
   async ({ id, updates }, { getState }) => {
     const token = getState().auth.token;
     if (!token) throw new Error('Not authenticated');
-    return callAuthenticatedApi(`/api/tasks/${id}`, token, {
+    return callApi(`/api/tasks/${id}`, token, {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
@@ -64,7 +81,7 @@ export const deleteTask = createAsyncThunk<{ id: string }, string, ThunkApiConfi
   async (id, { getState }) => {
     const token = getState().auth.token;
     if (!token) throw new Error('Not authenticated');
-    return callAuthenticatedApi(`/api/tasks/${id}`, token, { method: 'DELETE' });
+    return callApi(`/api/tasks/${id}`, token, { method: 'DELETE' });
   }
 );
 
@@ -85,7 +102,7 @@ export const toggleTaskCompletion = createAsyncThunk<Task, string, { state: { ta
       updates.completedAt = undefined;
     }
     
-    return callAuthenticatedApi(`/api/tasks/${id}`, token, {
+    return callApi(`/api/tasks/${id}`, token, {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
@@ -131,7 +148,7 @@ const tasksSlice = createSlice({
       })
       .addMatcher(
         (action) => action.type.startsWith('tasks/') && action.type.endsWith('/rejected'),
-        (state, action) => {
+        (state, action: any) => {
           state.loading = 'failed';
           state.error = action.error?.message || 'Failed to process task request.';
         }
