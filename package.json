@@ -2,6 +2,7 @@
   "name": "mern-task-manager-server",
   "version": "1.0.0",
   "description": "Backend for MERN Task Manager",
+  "type": "module",
   "main": "server.ts",
   "scripts": {
     "start:server": "ts-node-dev server.ts",
